@@ -2,11 +2,13 @@ import express from "express";
 import User from "../models/userModel.js";
 import asyncHandler from "express-async-handler";
 import crypto from "crypto";
+import axios from "axios"; // Add axios for API calls
 
 const router = express.Router();
 
-
-const paystack = process.env.PAYSTACK_SECRET_KEY;
+// Initialize Paystack with the secret key
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+const PAYSTACK_BASE_URL = 'https://api.paystack.co';
 
 // Register user without ticket ID
 const registerUser = asyncHandler(async (req, res) => {
@@ -18,14 +20,12 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new Error("User already exists");
   }
 
-  // Create user without ticket ID initially
   const user = await User.create({
     name,
     email,
     level,
     amount,
     paid: false,
-    // No ticketId assigned yet
   });
 
   if (user) {
@@ -36,7 +36,7 @@ const registerUser = asyncHandler(async (req, res) => {
       level: user.level,
       amount: user.amount,
       paid: user.paid,
-      ticketId: null, // No ticket ID until payment
+      ticketId: null,
       message: "Registration successful. Please proceed to payment to get your ticket ID.",
     });
   } else {
@@ -45,170 +45,190 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
-
-// Initialize Paystack payment
+// Initialize Paystack payment - FIXED VERSION
 const initializePayment = asyncHandler(async (req, res) => {
   const { userId, email, amount } = req.body;
   
   const user = await User.findById(userId);
   
   if (!user) {
-    res.status(404);
-    throw new Error("User not found");
+    return res.status(404).json({ error: "User not found" });
   }
   
   if (user.paid) {
-    res.status(400);
-    throw new Error("User has already paid");
+    return res.status(400).json({ error: "User has already paid" });
+  }
+  
+  // Validate Paystack secret key
+  if (!PAYSTACK_SECRET_KEY) {
+    return res.status(500).json({ error: "Paystack configuration error" });
   }
   
   // Convert amount to kobo (Paystack requires amount in kobo)
-  const amountInKobo = amount * 100;
+  const amountInKobo = Math.round(amount * 100);
   
-  // Initialize Paystack transaction
-  const transaction = await paystack.transaction.initialize({
-    email: email || user.email,
-    amount: amountInKobo, // Amount in kobo
-    currency: 'NGN',
-    reference: `TICKET-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-    metadata: {
-      userId: user._id.toString(),
-      custom_fields: [
-        {
-          display_name: "Full Name",
-          variable_name: "full_name",
-          value: user.name
-        },
-        {
-          display_name: "Level",
-          variable_name: "level",
-          value: user.level
+  // Generate unique reference
+  const reference = `TICKET-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+  
+  try {
+    // Make API call to Paystack
+    const response = await axios.post(
+      `${PAYSTACK_BASE_URL}/transaction/initialize`,
+      {
+        email: email || user.email,
+        amount: amountInKobo,
+        currency: 'NGN',
+        reference: reference,
+        metadata: {
+          userId: user._id.toString(),
+          custom_fields: [
+            {
+              display_name: "Full Name",
+              variable_name: "full_name",
+              value: user.name
+            },
+            {
+              display_name: "Level",
+              variable_name: "level",
+              value: user.level
+            }
+          ]
         }
-      ]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (response.data.status !== true) {
+      return res.status(400).json({ 
+        error: "Failed to initialize payment",
+        details: response.data.message 
+      });
     }
-  });
-  
-  if (!transaction.status) {
-    res.status(400);
-    throw new Error("Failed to initialize payment");
+    
+    // Save payment reference to user
+    user.paymentReference = reference;
+    await user.save();
+    
+    res.status(200).json({
+      status: true,
+      message: "Payment initialized successfully",
+      data: {
+        authorization_url: response.data.data.authorization_url,
+        access_code: response.data.data.access_code,
+        reference: response.data.data.reference
+      }
+    });
+    
+  } catch (error) {
+    console.error('Paystack initialization error:', error.response?.data || error.message);
+    res.status(500).json({ 
+      error: "Failed to initialize payment",
+      details: error.response?.data?.message || error.message 
+    });
   }
-  
-  // Save payment reference to user (temporarily)
-  user.paymentReference = transaction.data.reference;
-  await user.save();
-  
-  res.status(200).json({
-    authorization_url: transaction.data.authorization_url,
-    access_code: transaction.data.access_code,
-    reference: transaction.data.reference,
-    message: "Payment initialized successfully"
-  });
 });
 
-
-
-
-
-
-
-
-
-
-
-
-// Webhook endpoint for Paystack callback
+// Verify payment using Paystack API
 const verifyPayment = asyncHandler(async (req, res) => {
-  const { reference } = req.body;
+  const { reference } = req.params; // Changed from req.body to req.params
   
   if (!reference) {
-    res.status(400);
-    throw new Error("Payment reference is required");
+    return res.status(400).json({ error: "Payment reference is required" });
   }
   
-  // Verify transaction with Paystack
-  const verification = await paystack.transaction.verify(reference);
-  
-  if (!verification.status || verification.data.status !== 'success') {
-    res.status(400);
-    throw new Error("Payment verification failed");
-  }
-  
-  // Find user by payment reference
-  const user = await User.findOne({ paymentReference: reference });
-  
-  if (!user) {
-    res.status(404);
-    throw new Error("User not found for this payment");
-  }
-  
-  if (user.paid) {
-    res.status(200).json({
-      message: "Payment already processed",
-      ticketId: user.ticketId
-    });
-    return;
-  }
-  
-  // Generate unique ticket ID
-  const ticketId = `TICKET-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-  
-  // Generate QR code data
-  const qrCodeData = JSON.stringify({
-    ticketId,
-    name: user.name,
-    email: user.email,
-    level: user.level,
-    paymentReference: reference,
-    paymentDate: new Date().toISOString()
-  });
-  
-  // Update user with ticket ID and payment status
-  user.ticketId = ticketId;
-  user.paid = true;
-  user.paymentDate = new Date();
-  user.qrCodeData = qrCodeData;
-  user.amount = verification.data.amount / 100; // Convert from kobo to Naira
-  
-  await user.save();
-  
-  // In production, you might want to send an email here
-  
-  res.status(200).json({
-    message: "Payment verified successfully!",
-    ticketId: user.ticketId,
-    qrCodeData: user.qrCodeData,
-    userDetails: {
+  try {
+    // Verify transaction with Paystack API
+    const response = await axios.get(
+      `${PAYSTACK_BASE_URL}/transaction/verify/${reference}`,
+      {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`
+        }
+      }
+    );
+    
+    if (response.data.status !== true || response.data.data.status !== 'success') {
+      return res.status(400).json({ error: "Payment verification failed" });
+    }
+    
+    // Find user by payment reference
+    const user = await User.findOne({ paymentReference: reference });
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found for this payment" });
+    }
+    
+    if (user.paid) {
+      return res.status(200).json({
+        message: "Payment already processed",
+        ticketId: user.ticketId
+      });
+    }
+    
+    // Generate unique ticket ID
+    const ticketId = `TICKET-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    
+    // Generate QR code data
+    const qrCodeData = JSON.stringify({
+      ticketId,
       name: user.name,
       email: user.email,
       level: user.level,
-      amount: user.amount,
-      paymentDate: user.paymentDate
-    },
-    paymentDetails: {
-      reference: verification.data.reference,
-      amount: verification.data.amount / 100,
-      currency: verification.data.currency,
-      paidAt: verification.data.paid_at
-    }
-  });
+      paymentReference: reference,
+      paymentDate: new Date().toISOString()
+    });
+    
+    // Update user with ticket ID and payment status
+    user.ticketId = ticketId;
+    user.paid = true;
+    user.paymentDate = new Date();
+    user.qrCodeData = qrCodeData;
+    user.amount = response.data.data.amount / 100; // Convert from kobo to Naira
+    
+    await user.save();
+    
+    res.status(200).json({
+      message: "Payment verified successfully!",
+      ticketId: user.ticketId,
+      qrCodeData: user.qrCodeData,
+      userDetails: {
+        name: user.name,
+        email: user.email,
+        level: user.level,
+        amount: user.amount,
+        paymentDate: user.paymentDate
+      },
+      paymentDetails: {
+        reference: response.data.data.reference,
+        amount: response.data.data.amount / 100,
+        currency: response.data.data.currency,
+        paidAt: response.data.data.paid_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('Payment verification error:', error.response?.data || error.message);
+    res.status(500).json({ 
+      error: "Payment verification failed",
+      details: error.response?.data?.message || error.message 
+    });
+  }
 });
 
-
-
-
-
-
-
-
+// Paystack webhook handler
 const paystackWebhook = asyncHandler(async (req, res) => {
   // Validate Paystack signature
-  const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
+  const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY)
     .update(JSON.stringify(req.body))
     .digest('hex');
   
   if (hash !== req.headers['x-paystack-signature']) {
-    res.status(401);
-    throw new Error("Invalid signature");
+    return res.status(401).json({ error: "Invalid signature" });
   }
   
   const event = req.body;
@@ -217,78 +237,111 @@ const paystackWebhook = asyncHandler(async (req, res) => {
   if (event.event === 'charge.success') {
     const { reference } = event.data;
     
-    // Process payment (use the verification logic from above)
-    // ... same verification and ticket generation code
-    
-    // Return 200 to acknowledge receipt
-    return res.status(200).json({ received: true });
+    try {
+      // Find user by payment reference
+      const user = await User.findOne({ paymentReference: reference });
+      
+      if (user && !user.paid) {
+        // Generate ticket ID for successful payment
+        const ticketId = `TICKET-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+        
+        const qrCodeData = JSON.stringify({
+          ticketId,
+          name: user.name,
+          email: user.email,
+          level: user.level,
+          paymentReference: reference,
+          paymentDate: new Date().toISOString()
+        });
+        
+        user.ticketId = ticketId;
+        user.paid = true;
+        user.paymentDate = new Date();
+        user.qrCodeData = qrCodeData;
+        
+        await user.save();
+        
+        // Here you can also send email notification
+        console.log(`Payment successful for user ${user.email}, ticket: ${ticketId}`);
+      }
+    } catch (error) {
+      console.error('Webhook processing error:', error);
+    }
   }
   
+  // Always return 200 to acknowledge receipt
   res.status(200).json({ received: true });
 });
 
-
-
-
-
-
-// Process payment and generate ticket ID
+// Process payment (alternative to webhook - for direct calls)
 const processPayment = asyncHandler(async (req, res) => {
   const { userId, paymentReference } = req.body;
 
   const user = await User.findById(userId);
 
   if (!user) {
-    res.status(404);
-    throw new Error("User not found");
+    return res.status(404).json({ error: "User not found" });
   }
 
   if (user.paid) {
-    res.status(400);
-    throw new Error("User has already paid");
+    return res.status(400).json({ error: "User has already paid" });
   }
 
-  // Generate unique ticket ID
-  const ticketId = `TICKET-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-
-  // Generate QR code data (can be URL or JSON string)
-  const qrCodeData = JSON.stringify({
-    ticketId,
-    name: user.name,
-    email: user.email,
-    level: user.level,
-  });
-
-  // Update user with ticket ID and payment status
-  user.ticketId = ticketId;
-  user.paid = true;
-  user.paymentReference = paymentReference;
-  user.qrCodeData = qrCodeData;
-
-  await user.save();
-
-  res.status(200).json({
-    message: "Payment successful!",
-    ticketId: user.ticketId,
-    qrCodeData: user.qrCodeData,
-    userDetails: {
+  // Verify payment first
+  try {
+    const response = await axios.get(
+      `${PAYSTACK_BASE_URL}/transaction/verify/${paymentReference}`,
+      {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`
+        }
+      }
+    );
+    
+    if (response.data.status !== true || response.data.data.status !== 'success') {
+      return res.status(400).json({ error: "Payment verification failed" });
+    }
+    
+    // Generate unique ticket ID
+    const ticketId = `TICKET-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    
+    const qrCodeData = JSON.stringify({
+      ticketId,
       name: user.name,
       email: user.email,
       level: user.level,
-      amount: user.amount,
-    },
-  });
+    });
+    
+    // Update user
+    user.ticketId = ticketId;
+    user.paid = true;
+    user.paymentReference = paymentReference;
+    user.qrCodeData = qrCodeData;
+    user.amount = response.data.data.amount / 100;
+    user.paymentDate = new Date();
+    
+    await user.save();
+    
+    return res.status(200).json({
+      message: "Payment successful!",
+      ticketId: user.ticketId,
+      qrCodeData: user.qrCodeData,
+      userDetails: {
+        name: user.name,
+        email: user.email,
+        level: user.level,
+        amount: user.amount,
+      },
+    });
+    
+  } catch (error) {
+    console.error('Process payment error:', error);
+    return res.status(500).json({ 
+      error: "Payment processing failed",
+      details: error.response?.data?.message || error.message 
+    });
+  }
 });
-
-
-
-
-
-
-
-
-
-
 
 // Verify ticket by scanning QR code
 const verifyTicket = asyncHandler(async (req, res) => {
@@ -297,13 +350,11 @@ const verifyTicket = asyncHandler(async (req, res) => {
   const user = await User.findOne({ ticketId });
 
   if (!user) {
-    res.status(404);
-    throw new Error("Invalid ticket ID");
+    return res.status(404).json({ error: "Invalid ticket ID" });
   }
 
   if (!user.paid) {
-    res.status(400);
-    throw new Error("Ticket not paid for");
+    return res.status(400).json({ error: "Ticket not paid for" });
   }
 
   res.status(200).json({
@@ -328,8 +379,7 @@ const getPaymentStatus = asyncHandler(async (req, res) => {
   const user = await User.findById(userId);
 
   if (!user) {
-    res.status(404);
-    throw new Error("User not found");
+    return res.status(404).json({ error: "User not found" });
   }
 
   res.status(200).json({
@@ -342,13 +392,12 @@ const getPaymentStatus = asyncHandler(async (req, res) => {
   });
 });
 
-
 export {
-    registerUser,
-    verifyPayment,
-    paystackWebhook,
-    initializePayment,
-    processPayment,
-    verifyTicket,
-    getPaymentStatus,
-}
+  registerUser,
+  verifyPayment,
+  paystackWebhook,
+  initializePayment,
+  processPayment,
+  verifyTicket,
+  getPaymentStatus,
+};

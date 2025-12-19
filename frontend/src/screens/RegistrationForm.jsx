@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
-import { useRegisterUserMutation, useInitializePaymentMutation } from '../slices/userApiSlice.js'
+import React, { useState, useEffect } from 'react'
+import { useRegisterUserMutation } from '../slices/userApiSlice.js'
+import { useNavigate } from 'react-router-dom'
 
 const RegistrationForm = () => {
   const [formData, setFormData] = useState({
@@ -11,19 +12,41 @@ const RegistrationForm = () => {
   
   const [errors, setErrors] = useState({})
   const [successMessage, setSuccessMessage] = useState('')
+  const [isRegistered, setIsRegistered] = useState(false)
   const [userData, setUserData] = useState(null)
-  const [paymentUrl, setPaymentUrl] = useState('')
   
-  // RTK Query mutations
+  const navigate = useNavigate()
   const [registerUser, { isLoading: isRegistering }] = useRegisterUserMutation()
-  const [initializePayment, { isLoading: isInitializing }] = useInitializePaymentMutation()
+  
+  // Define level-based pricing
+  const levelPrices = {
+    '100': 1500,
+    '200': 2500,
+    '300': 3500,
+    '400': 4500,
+    '500': 5500,
+    'alumni': 1000,
+    'guest': 2000
+  }
+  
+  useEffect(() => {
+    // Auto-calculate amount when level changes
+    if (formData.level && levelPrices[formData.level]) {
+      setFormData(prev => ({
+        ...prev,
+        amount: levelPrices[formData.level].toString()
+      }))
+    }
+  }, [formData.level])
   
   const handleChange = (e) => {
     const { name, value } = e.target
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
     }))
+    
     // Clear error for this field
     if (errors[name]) {
       setErrors(prev => ({
@@ -50,12 +73,6 @@ const RegistrationForm = () => {
       newErrors.level = 'Please select your level'
     }
     
-    if (!formData.amount) {
-      newErrors.amount = 'Amount is required'
-    } else if (isNaN(formData.amount) || Number(formData.amount) <= 0) {
-      newErrors.amount = 'Please enter a valid amount'
-    }
-    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -68,32 +85,22 @@ const RegistrationForm = () => {
     }
     
     try {
-      // Step 1: Register the user
       const registrationResponse = await registerUser(formData).unwrap()
       
       setUserData(registrationResponse)
       setSuccessMessage(registrationResponse.message)
+      setIsRegistered(true)
       
-      // Step 2: Initialize payment with Paystack
-      const paymentData = {
-        userId: registrationResponse._id,
-        email: registrationResponse.email,
-        amount: registrationResponse.amount
-      }
-      
-      const paymentResponse = await initializePayment(paymentData).unwrap()
-      setPaymentUrl(paymentResponse.authorization_url)
-      
-      // Automatically redirect to Paystack payment page
-      if (paymentResponse.authorization_url) {
-        window.location.href = paymentResponse.authorization_url
-      }
+      // Clear errors
+      setErrors({})
       
     } catch (error) {
       console.error('Registration error:', error)
       setSuccessMessage('')
       
-      if (error.data?.message) {
+      if (error.data?.error) {
+        setErrors({ submit: error.data.error })
+      } else if (error.data?.message) {
         setErrors({ submit: error.data.message })
       } else {
         setErrors({ submit: 'Registration failed. Please try again.' })
@@ -101,15 +108,27 @@ const RegistrationForm = () => {
     }
   }
   
+  const handleProceedToPayment = () => {
+    // Navigate to payment screen with user data
+    navigate('/payment', { 
+      state: { 
+        userId: userData._id,
+        email: userData.email,
+        level: userData.level,
+        amount: userData.amount
+      } 
+    })
+  }
+  
   const levels = [
     { value: '', label: 'Select your level' },
-    { value: '100', label: '100 Level' },
-    { value: '200', label: '200 Level' },
-    { value: '300', label: '300 Level' },
-    { value: '400', label: '400 Level' },
-    { value: '500', label: '500 Level' },
-    { value: 'alumni', label: 'Alumni' },
-    { value: 'guest', label: 'Guest' }
+    { value: '100', label: '100 Level - ₦1,500' },
+    { value: '200', label: '200 Level - ₦2,500' },
+    { value: '300', label: '300 Level - ₦3,500' },
+    { value: '400', label: '400 Level - ₦4,500' },
+    { value: '500', label: '500 Level - ₦5,500' },
+    { value: 'alumni', label: 'Alumni - ₦1,000' },
+    { value: 'guest', label: 'Guest - ₦2,000' }
   ]
   
   return (
@@ -122,7 +141,7 @@ const RegistrationForm = () => {
           </p>
         </div>
         
-        {successMessage && !paymentUrl && (
+        {successMessage && (
           <div className="success-message">
             {successMessage}
           </div>
@@ -134,123 +153,141 @@ const RegistrationForm = () => {
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="registration-form">
-          <div className="form-group">
-            <label htmlFor="name" className="form-label">
-              Full Name *
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className={`form-input ${errors.name ? 'error' : ''}`}
-              placeholder="Enter your full name"
-              disabled={isRegistering}
-            />
-            {errors.name && <span className="error-text">{errors.name}</span>}
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
-              Email Address *
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className={`form-input ${errors.email ? 'error' : ''}`}
-              placeholder="Enter your email"
-              disabled={isRegistering}
-            />
-            {errors.email && <span className="error-text">{errors.email}</span>}
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="level" className="form-label">
-              Level *
-            </label>
-            <select
-              id="level"
-              name="level"
-              value={formData.level}
-              onChange={handleChange}
-              className={`form-select ${errors.level ? 'error' : ''}`}
+        {!isRegistered ? (
+          <form onSubmit={handleSubmit} className="registration-form">
+            <div className="form-group">
+              <label htmlFor="name" className="form-label">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className={`form-input ${errors.name ? 'error' : ''}`}
+                placeholder="Enter your full name"
+                disabled={isRegistering}
+              />
+              {errors.name && <span className="error-text">{errors.name}</span>}
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="email" className="form-label">
+                Email Address *
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className={`form-input ${errors.email ? 'error' : ''}`}
+                placeholder="Enter your email"
+                disabled={isRegistering}
+              />
+              {errors.email && <span className="error-text">{errors.email}</span>}
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="level" className="form-label">
+                Level *
+              </label>
+              <select
+                id="level"
+                name="level"
+                value={formData.level}
+                onChange={handleChange}
+                className={`form-select ${errors.level ? 'error' : ''}`}
+                disabled={isRegistering}
+              >
+                {levels.map((level) => (
+                  <option key={level.value} value={level.value}>
+                    {level.label}
+                  </option>
+                ))}
+              </select>
+              {errors.level && <span className="error-text">{errors.level}</span>}
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="amount" className="form-label">
+                Amount *
+              </label>
+              <div className="amount-display">
+                <input
+                  type="text"
+                  id="amount"
+                  name="amount"
+                  value={`₦${formData.amount ? parseInt(formData.amount).toLocaleString() : '0'}`}
+                  readOnly
+                  className="amount-input"
+                />
+                <span className="amount-note">
+                  Amount is automatically calculated based on your level
+                </span>
+              </div>
+            </div>
+            
+            <button
+              type="submit"
+              className="submit-btn"
               disabled={isRegistering}
             >
-              {levels.map((level) => (
-                <option key={level.value} value={level.value}>
-                  {level.label}
-                </option>
-              ))}
-            </select>
-            {errors.level && <span className="error-text">{errors.level}</span>}
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="amount" className="form-label">
-              Amount (₦) *
-            </label>
-            <input
-              type="number"
-              id="amount"
-              name="amount"
-              value={formData.amount}
-              onChange={handleChange}
-              className={`form-input ${errors.amount ? 'error' : ''}`}
-              placeholder="Enter amount"
-              min="0"
-              step="100"
-              disabled={isRegistering}
-            />
-            {errors.amount && <span className="error-text">{errors.amount}</span>}
-          </div>
-          
-          <button
-            type="submit"
-            className="submit-btn"
-            disabled={isRegistering || isInitializing}
-          >
-            {isRegistering || isInitializing ? (
-              <>
-                <span className="spinner"></span>
-                Processing...
-              </>
-            ) : (
-              'Register & Proceed to Payment'
-            )}
-          </button>
-        </form>
-        
-        {userData && (
-          <div className="user-info">
-            <h3>Registration Details:</h3>
-            <p><strong>Name:</strong> {userData.name}</p>
-            <p><strong>Email:</strong> {userData.email}</p>
-            <p><strong>Level:</strong> {userData.level}</p>
-            <p><strong>Amount:</strong> ₦{userData.amount}</p>
-            <p><strong>Status:</strong> {userData.paid ? 'Paid' : 'Pending Payment'}</p>
-          </div>
-        )}
-        
-        {paymentUrl && (
-          <div className="payment-redirect">
-            <p>Redirecting to payment page...</p>
-            <p>If you are not redirected automatically, 
-              <a href={paymentUrl} className="payment-link">click here</a>
+              {isRegistering ? (
+                <>
+                  <span className="spinner"></span>
+                  Registering...
+                </>
+              ) : (
+                'Register'
+              )}
+            </button>
+          </form>
+        ) : (
+          <div className="registration-success">
+            <div className="success-icon">✓</div>
+            <h3>Registration Successful!</h3>
+            <p>Your registration has been completed successfully.</p>
+            
+            <div className="user-summary">
+              <div className="summary-item">
+                <span className="summary-label">Name:</span>
+                <span className="summary-value">{userData.name}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Email:</span>
+                <span className="summary-value">{userData.email}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Level:</span>
+                <span className="summary-value">{userData.level} Level</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Amount:</span>
+                <span className="summary-value">₦{parseInt(userData.amount).toLocaleString()}</span>
+              </div>
+            </div>
+            
+            <button
+              onClick={handleProceedToPayment}
+              className="payment-btn"
+            >
+              Proceed to Payment
+            </button>
+            
+            <p className="payment-note">
+              You will need to verify your email before generating payment account details
             </p>
           </div>
         )}
         
         <div className="registration-footer">
           <p className="footer-text">
-            * All fields are required. After registration, you will be redirected to Paystack for payment.
+            * Amounts: 100L(₦1,500) | 200L(₦2,500) | 300L(₦3,500) | 400L(₦4,500) | 500L(₦5,500)
           </p>
           <p className="footer-text">
-            Your ticket ID will be generated after successful payment.
+            Alumni: ₦1,000 | Guest: ₦2,000
           </p>
         </div>
       </div>

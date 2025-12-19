@@ -10,10 +10,12 @@ import { Provider } from 'react-redux'
 import store from './store.js'
 
 import RegistrationForm from './screens/RegistrationForm.jsx'
+import PaymentScreen from './screens/PaymentScreen.jsx'
 
 const router = createBrowserRouter([
   {path: "/", element: <App />, children: [
     {index: true, element: <RegistrationForm />},
+    {path: "/payment", element: <PaymentScreen />},
   ]},
 ])
 
