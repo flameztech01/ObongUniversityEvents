@@ -8,8 +8,9 @@ const UploadReceiptScreen = () => {
   const { userId, paymentReference, amount, name } = location.state || {}
   
   const [uploadReceipt, { isLoading: isUploading }] = useUploadReceiptMutation()
-  const { data: paymentStatus, refetch } = useGetPaymentStatusQuery(userId, {
-    skip: !userId
+  const { data: paymentStatus, refetch, isLoading: isLoadingStatus } = useGetPaymentStatusQuery(userId, {
+    skip: !userId,
+    pollingInterval: 5000, // Poll every 5 seconds to check status
   })
   
   const [receiptUrl, setReceiptUrl] = useState('')
@@ -17,12 +18,36 @@ const UploadReceiptScreen = () => {
   const [errors, setErrors] = useState({})
   const [successMessage, setSuccessMessage] = useState('')
   const [previewImage, setPreviewImage] = useState(null)
+  const [isSubmitted, setIsSubmitted] = useState(false)
   
+  // Check if payment is already approved and redirect
   useEffect(() => {
+    if (paymentStatus?.data?.status === 'approved') {
+      // Redirect to ticket screen
+      setTimeout(() => {
+        navigate(`/ticket/${userId}`, { 
+          state: { user: paymentStatus.data }
+        })
+      }, 1000)
+    }
+    
     if (paymentStatus?.data?.receiptUrl) {
       setReceiptUrl(paymentStatus.data.receiptUrl)
+      setIsSubmitted(true)
     }
-  }, [paymentStatus])
+  }, [paymentStatus, navigate, userId])
+  
+  // Auto-redirect after successful upload
+  useEffect(() => {
+    if (isSubmitted && paymentStatus?.data?.status === 'pending_verification') {
+      // Start polling for status updates
+      const checkStatusInterval = setInterval(() => {
+        refetch()
+      }, 5000)
+      
+      return () => clearInterval(checkStatusInterval)
+    }
+  }, [isSubmitted, paymentStatus, refetch])
   
   const validateForm = () => {
     const newErrors = {}
@@ -70,11 +95,26 @@ const UploadReceiptScreen = () => {
       
       setSuccessMessage('Receipt uploaded successfully! Awaiting admin verification.')
       setErrors({})
+      setIsSubmitted(true)
       
-      // Refresh status
+      // Start polling for status updates
+      const checkStatus = async () => {
+        try {
+          await refetch()
+        } catch (error) {
+          console.error('Error checking status:', error)
+        }
+      }
+      
+      // Check status every 5 seconds
+      const statusInterval = setInterval(checkStatus, 5000)
+      
+      // Clear interval after 30 minutes
       setTimeout(() => {
-        refetch()
-      }, 2000)
+        clearInterval(statusInterval)
+      }, 30 * 60 * 1000)
+      
+      return () => clearInterval(statusInterval)
       
     } catch (error) {
       console.error('Upload error:', error)
@@ -91,10 +131,192 @@ const UploadReceiptScreen = () => {
   
   const handleViewStatus = () => {
     if (userId) {
-      navigate('/payment', { state: { userId } })
+      navigate(`/status/${userId}`)
     }
   }
   
+  const handleCheckNow = () => {
+    refetch()
+  }
+  
+  // Show loading screen while checking status
+  if (isLoadingStatus && isSubmitted) {
+    return (
+      <div className="app-container">
+        <div className="app-wrapper">
+          <div className="app-card">
+            <div className="card-header">
+              <div className="header-icon">
+                <svg className="icon-payment" viewBox="0 0 24 24">
+                  <path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2Z" />
+                </svg>
+              </div>
+              <h1 className="card-title">Checking Verification Status</h1>
+              <p className="card-subtitle">
+                Please wait while we check your payment verification...
+              </p>
+            </div>
+            
+            <div className="loading-content">
+              <div className="loading-spinner">
+                <div className="spinner"></div>
+              </div>
+              <p className="loading-message">
+                Your receipt has been submitted. We're checking if it's been verified yet.
+              </p>
+              <button
+                onClick={handleCheckNow}
+                className="btn btn-secondary"
+              >
+                Check Now
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  // Show status checking screen if receipt is already submitted
+  if (isSubmitted && paymentStatus?.data?.status === 'pending_verification') {
+    return (
+      <div className="app-container">
+        <div className="app-wrapper">
+          <div className="decor-circle decor-1"></div>
+          <div className="decor-circle decor-2"></div>
+          
+          <div className="app-card">
+            <div className="card-header">
+              <div className="header-icon">
+                <svg className="icon-payment" viewBox="0 0 24 24">
+                  <path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2Z" />
+                </svg>
+              </div>
+              <h1 className="card-title">Awaiting Verification</h1>
+              <p className="card-subtitle">
+                Your receipt is being reviewed by our team
+              </p>
+            </div>
+            
+            <div className="verification-status">
+              <div className="status-animation">
+                <div className="pulse-circle"></div>
+                <div className="status-icon">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2Z" />
+                  </svg>
+                </div>
+              </div>
+              
+              <div className="status-content">
+                <h3 className="status-title">Verification in Progress</h3>
+                <p className="status-description">
+                  Our team is reviewing your payment receipt. This usually takes 24-48 hours.
+                  You'll be automatically redirected to your ticket once approved.
+                </p>
+                
+                <div className="verification-details">
+                  <div className="detail-row">
+                    <span className="detail-label">Status:</span>
+                    <span className="detail-value status-pending">Under Review</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Submitted:</span>
+                    <span className="detail-value">
+                      {paymentStatus?.data?.paymentDate ? 
+                        new Date(paymentStatus.data.paymentDate).toLocaleDateString() : 
+                        'Just now'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="action-buttons">
+                  <button
+                    onClick={handleCheckNow}
+                    className="btn btn-primary"
+                  >
+                    <svg className="btn-icon" viewBox="0 0 24 24">
+                      <path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                    </svg>
+                    Check Status Now
+                  </button>
+                  
+                  <button
+                    onClick={handleViewStatus}
+                    className="btn btn-secondary"
+                  >
+                    View Full Status
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="auto-redirect-notice">
+              <svg className="notice-icon" viewBox="0 0 24 24">
+                <path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M13,17H11V15H13V17M13,13H11V7H13V13Z" />
+              </svg>
+              <p>
+                <strong>Note:</strong> This page will automatically redirect to your ticket 
+                once verification is complete. No need to refresh!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  // Show rejected status
+  if (paymentStatus?.data?.status === 'rejected') {
+    return (
+      <div className="app-container">
+        <div className="app-wrapper">
+          <div className="app-card">
+            <div className="card-header">
+              <div className="header-icon error">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z" />
+                </svg>
+              </div>
+              <h1 className="card-title">Payment Rejected</h1>
+              <p className="card-subtitle">
+                Your payment receipt was not approved
+              </p>
+            </div>
+            
+            <div className="rejection-content">
+              <div className="rejection-reason">
+                <h3>Reason for Rejection:</h3>
+                <p>{paymentStatus.data.rejectionReason || 'Payment details could not be verified'}</p>
+              </div>
+              
+              <div className="action-buttons">
+                <button
+                  onClick={() => {
+                    setIsSubmitted(false)
+                    setReceiptUrl('')
+                    setSuccessMessage('')
+                  }}
+                  className="btn btn-primary"
+                >
+                  Upload New Receipt
+                </button>
+                
+                <button
+                  onClick={handleViewStatus}
+                  className="btn btn-secondary"
+                >
+                  View Status
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  // Original form if not submitted or still pending payment
   if (!userId) {
     return (
       <div className="app-container">
@@ -326,6 +548,16 @@ const UploadReceiptScreen = () => {
                 </div>
               </div>
               
+              <div className="auto-redirect-notice">
+                <svg className="notice-icon" viewBox="0 0 24 24">
+                  <path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2Z" />
+                </svg>
+                <p>
+                  <strong>Automatic Ticket:</strong> Once your receipt is verified, 
+                  you'll be automatically redirected to your ticket page!
+                </p>
+              </div>
+              
               <div className="action-group">
                 <button
                   type="submit"
@@ -368,7 +600,7 @@ const UploadReceiptScreen = () => {
               <svg className="note-icon" viewBox="0 0 24 24">
                 <path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M11,16.5V18H13V16.5H11M12,6.5C10.07,6.5 8.5,8.07 8.5,10H10C10,8.9 10.9,8 12,8C13.1,8 14,8.9 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10C16,8.07 14.93,6.5 12,6.5Z" />
               </svg>
-              <p><strong>Verification Process:</strong> After upload, our team will verify your payment within 24-48 hours. You'll receive an email when approved.</p>
+              <p><strong>Verification Process:</strong> After upload, our team will verify your payment. You'll be automatically redirected to your ticket once approved.</p>
             </div>
           </div>
           
