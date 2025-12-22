@@ -1220,3 +1220,495 @@ body {
     display: none;
   }
 }
+
+/* Add to your existing CSS file */
+
+/* Detail value wrapper */
+.detail-value-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-value-wrapper .btn-text {
+  padding: 4px;
+}
+
+/* Radio group */
+.radio-group {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 16px;
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--gray-200);
+  transition: var(--transition);
+}
+
+.radio-label:hover {
+  border-color: var(--primary-300);
+}
+
+.radio-label input[type="radio"] {
+  margin: 0;
+}
+
+.radio-label span {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* File upload */
+.file-upload-area {
+  position: relative;
+}
+
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.file-upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  background: var(--gray-50);
+  border: 2px dashed var(--gray-300);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: center;
+}
+
+.file-upload-label:hover {
+  border-color: var(--primary-500);
+  background: var(--primary-50);
+}
+
+.upload-icon {
+  width: 48px;
+  height: 48px;
+  fill: var(--gray-400);
+  transition: var(--transition);
+}
+
+.file-upload-label:hover .upload-icon {
+  fill: var(--primary-500);
+}
+
+.file-types {
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+/* Image preview */
+.image-preview {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.image-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--gray-200);
+}
+
+.remove-btn {
+  margin-top: 8px;
+}
+
+/* Sublist */
+.sublist {
+  list-style: disc;
+  margin-left: 20px;
+  margin-top: 4px;
+}
+
+.sublist li {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+/* Status colors */
+.status-pending {
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.status-pending-verification {
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.status-approved {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.status-rejected {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.status-pending-payment {
+  color: #6b7280;
+  font-weight: 700;
+}
+
+/* Ticket card */
+.ticket-card {
+  background: linear-gradient(135deg, #ffffff, var(--gray-50));
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+  overflow: hidden;
+  margin-bottom: 32px;
+  box-shadow: var(--shadow-md);
+}
+
+.ticket-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  background: linear-gradient(135deg, var(--primary-600), var(--primary-400));
+  color: white;
+}
+
+.ticket-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ticket-event {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.ticket-qr {
+  width: 80px;
+  height: 80px;
+  background: white;
+  border-radius: var(--radius-md);
+  padding: 8px;
+}
+
+.qr-code {
+  width: 100%;
+  height: 100%;
+}
+
+.qr-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gray-100);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gray-500);
+}
+
+.ticket-body {
+  padding: 24px;
+}
+
+.ticket-section {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.section-label {
+  font-size: 12px;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.ticket-id-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ticket-id-large {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gray-800);
+  letter-spacing: 1px;
+}
+
+.copy-btn {
+  padding: 4px;
+}
+
+.ticket-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.ticket-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ticket-item-label {
+  font-size: 12px;
+  color: var(--gray-600);
+}
+
+.ticket-item-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.ticket-footer {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--gray-200);
+}
+
+.ticket-venue,
+.ticket-date {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.venue-icon,
+.date-icon {
+  width: 20px;
+  height: 20px;
+  fill: var(--primary-500);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.venue-details,
+.date-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.venue-name,
+.event-date {
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.venue-address,
+.event-time {
+  font-size: 14px;
+  color: var(--gray-600);
+}
+
+/* Loading indicator */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+  background: var(--gray-50);
+  border-radius: var(--radius-lg);
+  margin-bottom: 24px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--primary-100);
+  border-top-color: var(--primary-500);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  flex: 1;
+}
+
+.loading-text h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: 4px;
+}
+
+.loading-text p {
+  font-size: 14px;
+  color: var(--gray-600);
+}
+
+/* Error text */
+.error {
+  color: var(--error-500);
+  font-weight: 600;
+}
+
+/* Auth Tabs */
+.auth-tabs {
+  display: flex;
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 2rem;
+}
+
+.auth-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  color: #6c757d;
+}
+
+.auth-tab.active {
+  background: white;
+  color: #4361ee;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tab-icon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+/* Form Divider */
+.form-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+.form-divider::before,
+.form-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.form-divider span {
+  padding: 0 1rem;
+}
+
+/* Secondary Action Group */
+.action-group-secondary {
+  display: flex;
+  gap: 12px;
+  margin-top: 1rem;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid #dee2e6;
+  color: #6c757d;
+}
+
+.btn-outline:hover {
+  background: #f8f9fa;
+  border-color: #adb5bd;
+}
+
+/* Status Examples */
+.status-examples {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.examples-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 1rem;
+}
+
+.examples-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.example-item {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  transition: transform 0.2s ease;
+}
+
+.example-item:hover {
+  transform: translateY(-2px);
+  background: #e9ecef;
+}
+
+.example-icon {
+  background: #4361ee;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.example-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: white;
+}
+
+.example-content h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 4px;
+}
+
+.example-content p {
+  font-size: 0.75rem;
+  color: #6c757d;
+  line-height: 1.4;
+}

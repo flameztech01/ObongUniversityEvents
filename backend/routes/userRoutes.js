@@ -1,25 +1,24 @@
 import express from "express";
-import User from "../models/userModel.js";
 import {
   registerUser,
-  verifyPayment,
-  paystackWebhook,
-  initializePayment,
-  processPayment,
-  verifyTicket,
+  loginUser,
+  uploadReceipt,
   getPaymentStatus,
+  verifyTicket,
+  getUserProfile
 } from "../controllers/userController.js";
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+// Public routes
 router.post("/register", registerUser);
-router.post("/initialize-payment", initializePayment);
-router.post("/paystack-webhook", paystackWebhook);
-router.get("/verify-payment/:reference", verifyPayment);
-router.post("/pay", processPayment);
-router.get("/verify/:ticketId", verifyTicket);
+router.post("/login", loginUser);
+router.get("/verify-ticket/:ticketId", verifyTicket);
+
+// Protected routes (user must be logged in)
+router.post("/upload-receipt/:userId", uploadReceipt);
 router.get("/status/:userId", getPaymentStatus);
+router.get("/profile", getUserProfile);
 
 export default router;
-// Generate unique ticket ID
-const ticketId = `TICKET-${Date.now()}-${Math.floor(Math.random() * 1000)}`;

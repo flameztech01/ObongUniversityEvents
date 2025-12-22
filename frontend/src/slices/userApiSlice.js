@@ -4,6 +4,7 @@ const USER_URL = "/users";
 
 export const userApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
+    // Register user
     registerUser: builder.mutation({
       query: (userData) => ({
         url: `${USER_URL}/register`,
@@ -11,58 +12,60 @@ export const userApiSlice = apiSlice.injectEndpoints({
         body: userData,
       }),
     }),
-    initializePayment: builder.mutation({
-      query: (paymentData) => ({
-        url: `${USER_URL}/initialize-payment`,
+
+    // Login user
+    loginUser: builder.mutation({
+      query: (credentials) => ({
+        url: `${USER_URL}/login`,
         method: "POST",
-        body: paymentData,
+        body: credentials,
       }),
     }),
-    paystackWebhook: builder.mutation({
-      // Changed from query to mutation
-      query: (webhookData) => ({
-        // Added parameter for webhook data
-        url: `${USER_URL}/paystack-webhook`,
+
+    // Upload payment receipt
+    uploadReceipt: builder.mutation({
+      query: ({ userId, receiptUrl }) => ({
+        url: `${USER_URL}/upload-receipt/${userId}`,
         method: "POST",
-        body: webhookData, // Added body for webhook data
+        body: { receiptUrl },
       }),
     }),
-    verifyPayment: builder.query({
-      query: (reference) => ({
-        url: `${USER_URL}/verify-payment/${reference}`,
-        method: "GET",
-      }),
-    }),
-    processPayment: builder.mutation({
-      // Changed from query to mutation
-      query: (paymentData) => ({
-        // Added parameter for payment data
-        url: `${USER_URL}/pay`,
-        method: "POST",
-        body: paymentData, // Added body for payment data
-      }),
-    }),
-    verifyTicket: builder.query({
-      query: (ticketId) => ({
-        url: `${USER_URL}/verify/${ticketId}`,
-        method: "GET",
-      }),
-    }),
+
+    // Get payment status (protected route)
     getPaymentStatus: builder.query({
       query: (userId) => ({
         url: `${USER_URL}/status/${userId}`,
         method: "GET",
       }),
+      providesTags: ['PaymentStatus'],
+    }),
+
+    // Verify ticket by scanning QR
+    verifyTicket: builder.query({
+      query: (ticketId) => ({
+        url: `${USER_URL}/verify-ticket/${ticketId}`,
+        method: "GET",
+      }),
+    }),
+
+    // Get user profile (protected route - requires authentication)
+    getUserProfile: builder.query({
+      query: () => ({
+        url: `${USER_URL}/profile`,
+        method: "GET",
+      }),
+      providesTags: ['UserProfile'],
     }),
   }),
 });
 
 export const {
   useRegisterUserMutation,
-  useInitializePaymentMutation,
-  usePaystackWebhookMutation, // Changed from usePaystackWebhookQuery
-  useVerifyPaymentQuery,
-  useProcessPaymentMutation, // Changed from useProcessPaymentQuery
-  useVerifyTicketQuery,
+  useLoginUserMutation,
+  useUploadReceiptMutation,
   useGetPaymentStatusQuery,
+  useVerifyTicketQuery,
+  useGetUserProfileQuery,
+  useLazyGetPaymentStatusQuery,
+  useLazyVerifyTicketQuery,
 } = userApiSlice;

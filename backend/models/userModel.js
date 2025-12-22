@@ -1,44 +1,84 @@
 import mongoose from "mongoose";
 
-const userSchema = mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    level: {
-      type: String,
-      required: true,
-    },
-    amount: {
-      type: Number,
-      required: true,
-    },
-    ticketId: {
-      type: String,
-      unique: true,
-      sparse: true, // Allows null values while maintaining uniqueness
-    },
-    paid: {
-      type: Boolean,
-      default: false,
-    },
-    paymentReference: {
-      type: String,
-    },
-    qrCodeData: {
-      type: String,
-    },
+const userSchema = new mongoose.Schema({
+  name: { 
+    type: String, 
+    required: true,
+    trim: true 
   },
-  {
-    timestamps: true,
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    lowercase: true,
+    trim: true 
+  },
+  phone: { 
+    type: String, 
+    required: true,
+    trim: true 
+  },
+  level: { 
+    type: String, 
+    required: true,
+    enum: ['basic', 'standard', 'premium', 'vip']
+  },
+  status: { 
+    type: String, 
+    enum: ['pending_payment', 'pending_verification', 'approved', 'rejected'],
+    default: 'pending_payment'
+  },
+  paymentReference: { 
+    type: String, 
+    unique: true 
+  },
+  receiptUrl: { 
+    type: String 
+  },
+  ticketId: { 
+    type: String, 
+    unique: true,
+    sparse: true // Allows null values for uniqueness
+  },
+  qrCodeData: { 
+    type: Object 
+  },
+  qrCodeImage: { 
+    type: String 
+  },
+  paid: { 
+    type: Boolean, 
+    default: false 
+  },
+  amount: { 
+    type: Number 
+  },
+  paymentDate: { 
+    type: Date 
+  },
+  approvedAt: { 
+    type: Date 
+  },
+  approvedBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Admin' 
+  },
+  rejectedAt: { 
+    type: Date 
+  },
+  rejectedBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Admin' 
+  },
+  rejectionReason: { 
+    type: String 
+  },
+  adminNotes: { 
+    type: String 
   }
-);
+}, { 
+  timestamps: true 
+});
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model('User', userSchema);
 export default User;
