@@ -18,6 +18,16 @@ import TicketScreen from './screens/TicketScreen.jsx'
 import TicketWithId from './screens/TicketWithId.jsx'
 import StatusScreen from './screens/StatusScreen.jsx'
 
+import PrivateRoute from './components/PrivateRoute.jsx'
+import AdminLayout from './screens/AdminLayout.jsx';
+
+import AdminLogin from './adminScreens/adminLoginScreen.jsx';
+import AllUsers from './adminScreens/AllUsers.jsx'
+import PendingVerifications from './adminScreens/PendingVerifications.jsx'
+import Statistics from './adminScreens/Statistics.jsx'
+
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+
 const router = createBrowserRouter([
   {path: "/", element: <App />, children: [
     {index: true, element: <RegistrationForm />},
@@ -27,7 +37,13 @@ const router = createBrowserRouter([
     {path: "/upload-receipt", element: <UploadReceiptScreen />},
     {path: "/ticket", element: <TicketScreen />},
     {path: "/ticket/:id", element: <TicketWithId />},
-    {path: "/status/:userId", element: <StatusScreen />}
+    {path: "/status/:userId", element: <StatusScreen />},
+
+     // Update your routing like this:
+     {path: '/admin/login' , element: <AdminLogin />},
+     {path: 'admin/users', element: <AllUsers />},
+     {path: 'admin/pending-verifications' , element: <PendingVerifications />},
+     {path: 'admin/statistics' , element: <Statistics />},
   ]},
 ])
 

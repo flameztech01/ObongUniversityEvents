@@ -126,7 +126,7 @@ const RegistrationScreen = () => {
     { value: '200', label: '200 Level' },
     { value: '300', label: '300 Level' },
     { value: '400', label: '400 Level' },
-    { value: '500', label: '500 Level' }
+    { value: '500', label: '500 Level' },
   ]
   
   const getLevelLabel = (levelValue) => {

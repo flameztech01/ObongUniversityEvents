@@ -14,6 +14,8 @@ import {
 } from '../slices/adminApiSlice';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { useDispatch } from 'react-redux';
+import { setAdminCredentials, adminLogout } from '../slices/authSlice'; // Add this import
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -67,31 +69,36 @@ const AdminDashboard = () => {
   });
   const { data: statsData, isLoading: statsLoading, refetch: refetchStats } = useGetDashboardStatsQuery();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
+  const dispatch = useDispatch();
 
-    try {
-      const response = await loginAdmin(loginData).unwrap();
+ const handleLogin = async (e) => {
+  e.preventDefault();
+  setErrorMessage('');
+  setSuccessMessage('');
+
+  try {
+    const response = await loginAdmin(loginData).unwrap();
+    
+    if (response.success) {
+      // Store in Redux state
+      dispatch(setAdminCredentials({
+        token: response.token,
+        user: response.data // or response.user
+      }));
       
-      if (response.success) {
-        localStorage.setItem('adminToken', response.token || 'dummy-token');
-        localStorage.setItem('adminData', JSON.stringify(response.data));
-        setSuccessMessage('Login successful!');
-        setScreen('pending');
-      }
-    } catch (error) {
-      setErrorMessage(error?.data?.message || 'Login failed. Please check your credentials.');
+      setSuccessMessage('Login successful!');
+      setScreen('pending');
     }
-  };
+  } catch (error) {
+    setErrorMessage(error?.data?.message || 'Login failed. Please check your credentials.');
+  }
+};
 
-  const handleLogout = () => {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminData');
-    setScreen('login');
-    setSuccessMessage('Logged out successfully');
-  };
+const handleLogout = () => {
+  dispatch(adminLogout());
+  setScreen('login');
+  setSuccessMessage('Logged out successfully');
+};
 
   const handleApprove = async (userId) => {
     try {

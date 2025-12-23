@@ -27,22 +27,23 @@ const adminSchema = new mongoose.Schema({
   },
   lastLogin: { 
     type: Date 
+  },
+  createdBy: {  // Add this field to match your controller
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null
   }
 }, { 
   timestamps: true 
 });
 
-// Hash password before saving
-adminSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+// SIMPLIFIED pre-save hook (without next parameter)
+adminSchema.pre('save', async function() {
+  // Only hash the password if it's modified or new
+  if (!this.isModified('password')) return;
   
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // Compare password method

@@ -60,7 +60,7 @@ const userSchema = new mongoose.Schema({
     type: Date 
   },
   approvedBy: { 
-    type: mongoose.Schema.Types.ObjectId, 
+    type: mongoose.Schema.Types.Mixed, 
     ref: 'Admin' 
   },
   rejectedAt: { 

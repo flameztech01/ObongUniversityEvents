@@ -13,7 +13,7 @@ const getAmountByLevel = (level) => {
     "100": 4000,  // 100 level
     "200": 3000,  // 200 level
     "300": 3000,  // 300 level
-    "400": 4000,  // 400 level
+    "400": 3000,  // 400 level
     "500": 6000,  // 500 level
   };
   return amountMap[level] || 4000; // Default to 4000 if level not found

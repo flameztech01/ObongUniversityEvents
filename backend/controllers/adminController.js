@@ -4,6 +4,57 @@ import asyncHandler from "express-async-handler";
 import crypto from "crypto";
 import QRCode from "qrcode";
 
+
+const registerAdmin = asyncHandler(async (req, res) => {
+  const { name, email, password, role } = req.body;
+
+  // Validation
+  if (!name || !email || !password) {
+    res.status(400);
+    throw new Error("Please provide name, email, and password");
+  }
+
+  // Check if admin already exists
+  const adminExists = await Admin.findOne({ email });
+  if (adminExists) {
+    res.status(400);
+    throw new Error("Admin already exists with this email");
+  }
+
+  // Create admin
+  const admin = await Admin.create({
+    name,
+    email,
+    password,
+    role: role || "admin", // Default to "admin" if role not provided
+    isActive: true,
+    createdBy: req.admin?._id || null // If created by another admin
+  });
+
+  // Remove password from response
+  const adminData = {
+    id: admin._id,
+    name: admin.name,
+    email: admin.email,
+    role: admin.role,
+    isActive: admin.isActive,
+    createdAt: admin.createdAt,
+    createdBy: admin.createdBy
+  };
+
+  res.status(201).json({
+    success: true,
+    data: adminData,
+    message: "Admin registered successfully"
+  });
+});
+
+
+
+
+
+
+
 // Admin authentication
 const loginAdmin = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -357,8 +408,46 @@ const exportUsers = asyncHandler(async (req, res) => {
   });
 });
 
+// adminController.js
+const getDashboardStats = asyncHandler(async (req, res) => {
+  // Remove the req.admin check or keep it based on your testing
+  // if (!req.admin) {
+  //   res.status(403);
+  //   throw new Error("Not authorized");
+  // }
+
+  const total = await User.countDocuments();
+  const pending_payment = await User.countDocuments({ status: "pending_payment" });
+  const pending_verification = await User.countDocuments({ status: "pending_verification" });
+  const approved = await User.countDocuments({ status: "approved" });
+  const rejected = await User.countDocuments({ status: "rejected" });
+
+  // Optional: Recent activity
+  const recent_activity = await User.find({})
+    .sort({ updatedAt: -1 })
+    .limit(5)
+    .select('name email status updatedAt');
+
+  res.status(200).json({
+    success: true,
+    data: {
+      total,
+      pending_payment,
+      pending_verification,
+      approved,
+      rejected,
+      recent_activity: recent_activity.map(user => ({
+        description: `${user.name} (${user.email}) - Status: ${user.status}`,
+        type: user.status,
+        timestamp: user.updatedAt
+      }))
+    }
+  });
+});
+
 
 export {
+  registerAdmin,
     loginAdmin,
     getPendingVerifications,
     approvePayment,
@@ -366,5 +455,6 @@ export {
     getAllUsers,
     getUserDetails,
     searchUsers,
-    exportUsers
+    exportUsers,
+    getDashboardStats
 }

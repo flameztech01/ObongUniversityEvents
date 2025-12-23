@@ -1,13 +1,25 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
+// apiSlice.js
 const baseQuery = fetchBaseQuery({
   baseUrl: `${import.meta.env.VITE_API_URL || ''}/api`,
   credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
-    const token = getState().auth.userInfo?.token; // 👈 get token from redux
-
+    // Try to get token from Redux state first
+    const token = getState().auth.adminInfo?.token;
+    
+    // If not in Redux, check localStorage
+    if (!token) {
+      const adminInfo = localStorage.getItem('adminInfo');
+      if (adminInfo) {
+        const parsed = JSON.parse(adminInfo);
+        headers.set('Authorization', `Bearer ${parsed.token}`);
+        return headers;
+      }
+    }
+    
     if (token) {
-      headers.set('Authorization', `Bearer ${token}`); // 👈 attach token
+      headers.set('Authorization', `Bearer ${token}`);
     }
 
     return headers;
@@ -16,6 +28,6 @@ const baseQuery = fetchBaseQuery({
 
 export const apiSlice = createApi({
   baseQuery,
-  tagTypes: ['User', 'Blog'],
+  tagTypes: ['User', 'Admin'],
   endpoints: (builder) => ({}),
 });
