@@ -4,7 +4,6 @@ import asyncHandler from "express-async-handler";
 import crypto from "crypto";
 import QRCode from "qrcode";
 
-
 const registerAdmin = asyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
 
@@ -28,7 +27,7 @@ const registerAdmin = asyncHandler(async (req, res) => {
     password,
     role: role || "admin", // Default to "admin" if role not provided
     isActive: true,
-    createdBy: req.admin?._id || null // If created by another admin
+    createdBy: req.admin?._id || null, // If created by another admin
   });
 
   // Remove password from response
@@ -39,21 +38,15 @@ const registerAdmin = asyncHandler(async (req, res) => {
     role: admin.role,
     isActive: admin.isActive,
     createdAt: admin.createdAt,
-    createdBy: admin.createdBy
+    createdBy: admin.createdBy,
   };
 
   res.status(201).json({
     success: true,
     data: adminData,
-    message: "Admin registered successfully"
+    message: "Admin registered successfully",
   });
 });
-
-
-
-
-
-
 
 // Admin authentication
 const loginAdmin = asyncHandler(async (req, res) => {
@@ -77,7 +70,7 @@ const loginAdmin = asyncHandler(async (req, res) => {
   }
 
   const isPasswordMatch = await admin.comparePassword(password);
-  
+
   if (!isPasswordMatch) {
     res.status(401);
     throw new Error("Invalid credentials");
@@ -94,14 +87,11 @@ const loginAdmin = asyncHandler(async (req, res) => {
       name: admin.name,
       email: admin.email,
       role: admin.role,
-      lastLogin: admin.lastLogin
+      lastLogin: admin.lastLogin,
     },
-    message: "Login successful"
+    message: "Login successful",
   });
 });
-
-
-
 
 // Get all pending verifications
 const getPendingVerifications = asyncHandler(async (req, res) => {
@@ -111,17 +101,18 @@ const getPendingVerifications = asyncHandler(async (req, res) => {
     throw new Error("Not authorized");
   }
 
-  const pendingUsers = await User.find({ 
-    status: "pending_verification" 
-  }).select('-qrCodeData -qrCodeImage')
+  const pendingUsers = await User.find({
+    status: "pending_verification",
+  })
+    .select("-qrCodeData -qrCodeImage")
     .sort({ paymentDate: 1 }); // Sort by payment date (oldest first)
 
   res.status(200).json({
     success: true,
     data: {
       count: pendingUsers.length,
-      users: pendingUsers
-    }
+      users: pendingUsers,
+    },
   });
 });
 
@@ -145,12 +136,17 @@ const approvePayment = asyncHandler(async (req, res) => {
 
   if (user.status !== "pending_verification") {
     res.status(400);
-    throw new Error(`User is not pending verification. Current status: ${user.status}`);
+    throw new Error(
+      `User is not pending verification. Current status: ${user.status}`
+    );
   }
 
   // Generate unique ticket ID
-  const ticketId = `TICKET-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-  
+  const ticketId = `TICKET-${Date.now()}-${crypto
+    .randomBytes(4)
+    .toString("hex")
+    .toUpperCase()}`;
+
   // Create QR code data
   const qrCodeData = {
     ticketId,
@@ -160,7 +156,7 @@ const approvePayment = asyncHandler(async (req, res) => {
     level: user.level,
     event: "Your Event Name",
     date: new Date().toISOString(),
-    verifiedBy: req.admin.id
+    verifiedBy: req.admin.id,
   };
 
   // Generate QR code image
@@ -175,7 +171,7 @@ const approvePayment = asyncHandler(async (req, res) => {
   user.approvedAt = new Date();
   user.approvedBy = req.admin.id;
   user.adminNotes = adminNotes;
-  
+
   await user.save();
 
   // TODO: Send email notification to user
@@ -191,15 +187,11 @@ const approvePayment = asyncHandler(async (req, res) => {
         email: user.email,
         level: user.level,
         qrCodeImage: user.qrCodeImage,
-        approvedAt: user.approvedAt
-      }
-    }
+        approvedAt: user.approvedAt,
+      },
+    },
   });
 });
-
-
-
-
 
 // Reject payment
 const rejectPayment = asyncHandler(async (req, res) => {
@@ -226,7 +218,9 @@ const rejectPayment = asyncHandler(async (req, res) => {
 
   if (user.status !== "pending_verification") {
     res.status(400);
-    throw new Error(`User is not pending verification. Current status: ${user.status}`);
+    throw new Error(
+      `User is not pending verification. Current status: ${user.status}`
+    );
   }
 
   // Update user
@@ -234,7 +228,7 @@ const rejectPayment = asyncHandler(async (req, res) => {
   user.rejectionReason = rejectionReason;
   user.rejectedAt = new Date();
   user.rejectedBy = req.admin.id;
-  
+
   await user.save();
 
   // TODO: Send email notification to user
@@ -248,21 +242,10 @@ const rejectPayment = asyncHandler(async (req, res) => {
       name: user.name,
       email: user.email,
       rejectionReason: user.rejectionReason,
-      rejectedAt: user.rejectedAt
-    }
+      rejectedAt: user.rejectedAt,
+    },
   });
 });
-
-
-
-
-
-
-
-
-
-
-
 
 // Get all users for admin dashboard
 const getAllUsers = asyncHandler(async (req, res) => {
@@ -277,7 +260,7 @@ const getAllUsers = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const users = await User.find({})
-    .select('-qrCodeData -qrCodeImage')
+    .select("-qrCodeData -qrCodeImage")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -288,7 +271,9 @@ const getAllUsers = asyncHandler(async (req, res) => {
   const stats = {
     total: totalUsers,
     pending_payment: await User.countDocuments({ status: "pending_payment" }),
-    pending_verification: await User.countDocuments({ status: "pending_verification" }),
+    pending_verification: await User.countDocuments({
+      status: "pending_verification",
+    }),
     approved: await User.countDocuments({ status: "approved" }),
     rejected: await User.countDocuments({ status: "rejected" }),
   };
@@ -302,15 +287,11 @@ const getAllUsers = asyncHandler(async (req, res) => {
         page,
         limit,
         totalPages: Math.ceil(totalUsers / limit),
-        totalUsers
-      }
-    }
+        totalUsers,
+      },
+    },
   });
 });
-
-
-
-
 
 // Get user details by ID (admin view)
 const getUserDetails = asyncHandler(async (req, res) => {
@@ -331,14 +312,9 @@ const getUserDetails = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: user
+    data: user,
   });
 });
-
-
-
-
-
 
 // Search users
 const searchUsers = asyncHandler(async (req, res) => {
@@ -357,21 +333,22 @@ const searchUsers = asyncHandler(async (req, res) => {
 
   const users = await User.find({
     $or: [
-      { name: { $regex: query, $options: 'i' } },
-      { email: { $regex: query, $options: 'i' } },
-      { ticketId: { $regex: query, $options: 'i' } },
-      { paymentReference: { $regex: query, $options: 'i' } },
-      { phone: { $regex: query, $options: 'i' } }
-    ]
-  }).select('-qrCodeData -qrCodeImage')
+      { name: { $regex: query, $options: "i" } },
+      { email: { $regex: query, $options: "i" } },
+      { ticketId: { $regex: query, $options: "i" } },
+      { paymentReference: { $regex: query, $options: "i" } },
+      { phone: { $regex: query, $options: "i" } },
+    ],
+  })
+    .select("-qrCodeData -qrCodeImage")
     .limit(50);
 
   res.status(200).json({
     success: true,
     data: {
       count: users.length,
-      users
-    }
+      users,
+    },
   });
 });
 
@@ -384,27 +361,27 @@ const exportUsers = asyncHandler(async (req, res) => {
   }
 
   const users = await User.find({})
-    .select('-qrCodeData -qrCodeImage -__v')
+    .select("-qrCodeData -qrCodeImage -__v")
     .sort({ createdAt: -1 });
 
   // Format for CSV/Excel
-  const formattedUsers = users.map(user => ({
+  const formattedUsers = users.map((user) => ({
     "Ticket ID": user.ticketId || "N/A",
-    "Name": user.name,
-    "Email": user.email,
-    "Phone": user.phone,
-    "Level": user.level,
-    "Amount": user.amount,
-    "Status": user.status,
+    Name: user.name,
+    Email: user.email,
+    Phone: user.phone,
+    Level: user.level,
+    Amount: user.amount,
+    Status: user.status,
     "Payment Reference": user.paymentReference,
     "Payment Date": user.paymentDate ? user.paymentDate.toISOString() : "N/A",
     "Approved Date": user.approvedAt ? user.approvedAt.toISOString() : "N/A",
-    "Registration Date": user.createdAt.toISOString()
+    "Registration Date": user.createdAt.toISOString(),
   }));
 
   res.status(200).json({
     success: true,
-    data: formattedUsers
+    data: formattedUsers,
   });
 });
 
@@ -417,8 +394,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   // }
 
   const total = await User.countDocuments();
-  const pending_payment = await User.countDocuments({ status: "pending_payment" });
-  const pending_verification = await User.countDocuments({ status: "pending_verification" });
+  const pending_payment = await User.countDocuments({
+    status: "pending_payment",
+  });
+  const pending_verification = await User.countDocuments({
+    status: "pending_verification",
+  });
   const approved = await User.countDocuments({ status: "approved" });
   const rejected = await User.countDocuments({ status: "rejected" });
 
@@ -426,7 +407,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const recent_activity = await User.find({})
     .sort({ updatedAt: -1 })
     .limit(5)
-    .select('name email status updatedAt');
+    .select("name email status updatedAt");
 
   res.status(200).json({
     success: true,
@@ -436,25 +417,277 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       pending_verification,
       approved,
       rejected,
-      recent_activity: recent_activity.map(user => ({
+      recent_activity: recent_activity.map((user) => ({
         description: `${user.name} (${user.email}) - Status: ${user.status}`,
         type: user.status,
-        timestamp: user.updatedAt
-      }))
-    }
+        timestamp: user.updatedAt,
+      })),
+    },
   });
 });
 
+// Bulk approve payments
+const bulkApprovePayments = asyncHandler(async (req, res) => {
+  const { userIds, adminNotes } = req.body;
+
+  // Check if user is admin
+  if (!req.admin) {
+    res.status(403);
+    throw new Error("Not authorized");
+  }
+
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    res.status(400);
+    throw new Error("Please provide an array of user IDs");
+  }
+
+  const results = {
+    successful: [],
+    failed: [],
+    skipped: [],
+  };
+
+  // Process each user
+  for (const userId of userIds) {
+    try {
+      const user = await User.findById(userId);
+
+      if (!user) {
+        results.failed.push({
+          userId,
+          error: "User not found",
+        });
+        continue;
+      }
+
+      if (user.status !== "pending_verification") {
+        results.skipped.push({
+          userId,
+          name: user.name,
+          email: user.email,
+          reason: `User is not pending verification. Current status: ${user.status}`,
+        });
+        continue;
+      }
+
+      // Generate unique ticket ID
+      const ticketId = `TICKET-${Date.now()}-${crypto
+        .randomBytes(4)
+        .toString("hex")
+        .toUpperCase()}-${userIds.indexOf(userId)}`;
+
+      // Create QR code data
+      const qrCodeData = {
+        ticketId,
+        userId: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        level: user.level,
+        event: "Your Event Name",
+        date: new Date().toISOString(),
+        verifiedBy: req.admin.id,
+        batchApproved: true,
+      };
+
+      // Generate QR code image
+      const qrCodeImage = await QRCode.toDataURL(JSON.stringify(qrCodeData));
+
+      // Update user
+      user.status = "approved";
+      user.paid = true;
+      user.ticketId = ticketId;
+      user.qrCodeData = qrCodeData;
+      user.qrCodeImage = qrCodeImage;
+      user.approvedAt = new Date();
+      user.approvedBy = req.admin.id;
+      user.adminNotes = adminNotes || `Bulk approved by ${req.admin.name}`;
+
+      await user.save();
+
+      results.successful.push({
+        userId: user._id,
+        ticketId,
+        name: user.name,
+        email: user.email,
+      });
+
+      // TODO: Queue email notification instead of sending immediately in bulk
+      // await sendTicketEmail(user.email, ticketId, qrCodeImage);
+    } catch (error) {
+      results.failed.push({
+        userId,
+        error: error.message,
+      });
+    }
+  }
+
+  // Log bulk operation
+  console.log(
+    `Bulk approval completed by admin ${req.admin.id}: ${results.successful.length} successful, ${results.failed.length} failed, ${results.skipped.length} skipped`
+  );
+
+  res.status(200).json({
+    success: true,
+    data: {
+      message: "Bulk approval completed",
+      summary: {
+        total: userIds.length,
+        successful: results.successful.length,
+        failed: results.failed.length,
+        skipped: results.skipped.length,
+      },
+      details: results,
+    },
+  });
+});
+
+// Bulk reject payments
+const bulkRejectPayments = asyncHandler(async (req, res) => {
+  const { userIds, rejectionReason } = req.body;
+
+  // Check if user is admin
+  if (!req.admin) {
+    res.status(403);
+    throw new Error("Not authorized");
+  }
+
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    res.status(400);
+    throw new Error("Please provide an array of user IDs");
+  }
+
+  if (!rejectionReason) {
+    res.status(400);
+    throw new Error("Rejection reason is required for bulk rejection");
+  }
+
+  const results = {
+    successful: [],
+    failed: [],
+    skipped: [],
+  };
+
+  // Process each user
+  for (const userId of userIds) {
+    try {
+      const user = await User.findById(userId);
+
+      if (!user) {
+        results.failed.push({
+          userId,
+          error: "User not found",
+        });
+        continue;
+      }
+
+      if (user.status !== "pending_verification") {
+        results.skipped.push({
+          userId,
+          name: user.name,
+          email: user.email,
+          reason: `User is not pending verification. Current status: ${user.status}`,
+        });
+        continue;
+      }
+
+      // Update user
+      user.status = "rejected";
+      user.rejectionReason = rejectionReason;
+      user.rejectedAt = new Date();
+      user.rejectedBy = req.admin.id;
+      user.adminNotes = `Bulk rejected by ${req.admin.name}: ${rejectionReason}`;
+
+      await user.save();
+
+      results.successful.push({
+        userId: user._id,
+        name: user.name,
+        email: user.email,
+      });
+
+      // TODO: Queue email notification
+      // await sendRejectionEmail(user.email, rejectionReason);
+    } catch (error) {
+      results.failed.push({
+        userId,
+        error: error.message,
+      });
+    }
+  }
+
+  // Log bulk operation
+  console.log(
+    `Bulk rejection completed by admin ${req.admin.id}: ${results.successful.length} successful, ${results.failed.length} failed, ${results.skipped.length} skipped`
+  );
+
+  res.status(200).json({
+    success: true,
+    data: {
+      message: "Bulk rejection completed",
+      summary: {
+        total: userIds.length,
+        successful: results.successful.length,
+        failed: results.failed.length,
+        skipped: results.skipped.length,
+      },
+      details: results,
+    },
+  });
+});
+
+// Batch operation to approve all pending verifications
+const approveAllPending = asyncHandler(async (req, res) => {
+  const { adminNotes } = req.body;
+
+  // Check if user is admin
+  if (!req.admin) {
+    res.status(403);
+    throw new Error("Not authorized");
+  }
+
+  // Get all pending verification users
+  const pendingUsers = await User.find({
+    status: "pending_verification",
+  });
+
+  if (pendingUsers.length === 0) {
+    res.status(200).json({
+      success: true,
+      data: {
+        message: "No pending verifications found",
+        summary: {
+          total: 0,
+          successful: 0,
+          failed: 0,
+        },
+      },
+    });
+    return;
+  }
+
+  const userIds = pendingUsers.map((user) => user._id);
+
+  // Use the bulk approval function
+  req.body.userIds = userIds;
+  req.body.adminNotes =
+    adminNotes || `Bulk approved all pending by ${req.admin.name}`;
+
+  // Call bulkApprovePayments function
+  await bulkApprovePayments(req, res);
+});
 
 export {
   registerAdmin,
-    loginAdmin,
-    getPendingVerifications,
-    approvePayment,
-    rejectPayment,
-    getAllUsers,
-    getUserDetails,
-    searchUsers,
-    exportUsers,
-    getDashboardStats
-}
+  loginAdmin,
+  getPendingVerifications,
+  approvePayment,
+  rejectPayment,
+  getAllUsers,
+  getUserDetails,
+  searchUsers,
+  exportUsers,
+  getDashboardStats,
+  bulkApprovePayments,
+  bulkRejectPayments,
+  approveAllPending,
+};

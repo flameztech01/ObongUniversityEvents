@@ -63,8 +63,8 @@ const PaymentScreen = () => {
   }
   
   const paymentDetails = paymentStatus?.data?.paymentDetails || {
-    accountNumber: import.meta.env.VITE_OPAY_ACCOUNT_NUMBER || '1234567890',
-    accountName: import.meta.env.VITE_OPAY_ACCOUNT_NAME || 'EVENT ORGANIZER',
+    accountNumber: import.meta.env.VITE_OPAY_ACCOUNT_NUMBER || '7072179623',
+    accountName: import.meta.env.VITE_OPAY_ACCOUNT_NAME || 'Larry Clinton Ebubechukwu',
     bankName: import.meta.env.VITE_OPAY_BANK_NAME || 'OPay'
   }
   

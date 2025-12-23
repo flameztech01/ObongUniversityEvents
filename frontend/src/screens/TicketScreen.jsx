@@ -196,7 +196,7 @@ const TicketScreen = () => {
                   <div className="flex justify-between items-center">
                     <div>
                       <div className="text-xs font-bold uppercase tracking-wider opacity-90 mb-1">E-TICKET</div>
-                      <div className="text-lg font-semibold">Annual Event 2024</div>
+                      <div className="text-lg font-semibold">2025 Matric Party</div>
                     </div>
                     <div className="w-20 h-20 bg-white rounded-lg p-2">
                       {userData.qrCodeImage ? (
@@ -270,7 +270,7 @@ const TicketScreen = () => {
                         </svg>
                         <div>
                           <div className="font-semibold text-gray-800 mb-1">Main Event Hall</div>
-                          <div className="text-sm text-gray-600">123 Event Street, Lagos, Nigeria</div>
+                          <div className="text-sm text-gray-600">Obong University, Obong Ntak</div>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
@@ -278,7 +278,7 @@ const TicketScreen = () => {
                           <path d="M9,10H7V12H9V10M13,10H11V12H13V10M17,10H15V12H17V10M19,3H18V1H16V3H8V1H6V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M19,19H5V8H19V19Z" />
                         </svg>
                         <div>
-                          <div className="font-semibold text-gray-800 mb-1">December 25, 2024</div>
+                          <div className="font-semibold text-gray-800 mb-1">January 20th, 2025</div>
                           <div className="text-sm text-gray-600">6:00 PM - 11:00 PM</div>
                         </div>
                       </div>
