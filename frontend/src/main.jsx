@@ -11,19 +11,23 @@ import store from './store.js'
 
 import RegistrationForm from './screens/RegistrationForm.jsx'
 import LoginScreen from './screens/LoginScreen.jsx'
+import Dashboard from './screens/Dashboard.jsx'
 import PaymentScreen from './screens/PaymentScreen.jsx'
 import UploadReceiptScreen from './screens/UploadReceiptScreen.jsx'
 import TicketScreen from './screens/TicketScreen.jsx'
+import TicketWithId from './screens/TicketWithId.jsx'
 import StatusScreen from './screens/StatusScreen.jsx'
 
 const router = createBrowserRouter([
   {path: "/", element: <App />, children: [
     {index: true, element: <RegistrationForm />},
+    {path: "/dashboard", element: <Dashboard />},
     {path: "/login", element: <LoginScreen />},
     {path: "/payment", element: <PaymentScreen />},
     {path: "/upload-receipt", element: <UploadReceiptScreen />},
     {path: "/ticket", element: <TicketScreen />},
-    {path: "/status/:id", element: <StatusScreen />}
+    {path: "/ticket/:id", element: <TicketWithId />},
+    {path: "/status/:userId", element: <StatusScreen />}
   ]},
 ])
 

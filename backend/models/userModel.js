@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
   level: { 
     type: String, 
     required: true,
-    enum: ['basic', 'standard', 'premium', 'vip']
+    enum: ['100', '200', '300', '400', '500'] // Changed to numeric values
   },
   status: { 
     type: String, 
@@ -38,7 +38,7 @@ const userSchema = new mongoose.Schema({
   ticketId: { 
     type: String, 
     unique: true,
-    sparse: true // Allows null values for uniqueness
+    sparse: true
   },
   qrCodeData: { 
     type: Object 

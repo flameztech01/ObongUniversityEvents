@@ -10,18 +10,14 @@ const OPAY_BANK_NAME = process.env.OPAY_BANK_NAME || "OPay";
 // Helper function to get amount based on level
 const getAmountByLevel = (level) => {
   const amountMap = {
-    "basic": 5000,
-    "standard": 10000,
-    "premium": 15000,
-    "vip": 25000
+    "100": 4000,  // 100 level
+    "200": 3000,  // 200 level
+    "300": 3000,  // 300 level
+    "400": 4000,  // 400 level
+    "500": 6000,  // 500 level
   };
-  return amountMap[level.toLowerCase()] || 10000;
+  return amountMap[level] || 4000; // Default to 4000 if level not found
 };
-
-
-
-
-
 
 // Register user
 const registerUser = asyncHandler(async (req, res) => {
@@ -85,10 +81,6 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
-
-
-
-
 // User Login
 const loginUser = asyncHandler(async (req, res) => {
   const { email } = req.body;
@@ -149,9 +141,6 @@ const loginUser = asyncHandler(async (req, res) => {
   });
 });
 
-
-
-
 // Upload payment receipt
 const uploadReceipt = asyncHandler(async (req, res) => {
   const { userId } = req.params;
@@ -192,17 +181,6 @@ const uploadReceipt = asyncHandler(async (req, res) => {
     }
   });
 });
-
-
-
-
-
-
-
-
-
-
-
 
 // Get user's payment status
 const getPaymentStatus = asyncHandler(async (req, res) => {
@@ -266,14 +244,6 @@ const getPaymentStatus = asyncHandler(async (req, res) => {
   });
 });
 
-
-
-
-
-
-
-
-
 // Verify ticket by scanning QR code
 const verifyTicket = asyncHandler(async (req, res) => {
   const { ticketId } = req.params;
@@ -311,8 +281,6 @@ const verifyTicket = asyncHandler(async (req, res) => {
   });
 });
 
-
-
 // Get user by ID (for user's own dashboard)
 const getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id).select('-qrCodeData');
@@ -337,4 +305,4 @@ export {
   getPaymentStatus,
   verifyTicket,
   getUserProfile
-} ;
+};
