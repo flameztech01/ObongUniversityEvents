@@ -3,8 +3,8 @@ import asyncHandler from "express-async-handler";
 import crypto from "crypto";
 
 // OPay account details
-const OPAY_ACCOUNT_NUMBER = process.env.OPAY_ACCOUNT_NUMBER || "1234567890";
-const OPAY_ACCOUNT_NAME = process.env.OPAY_ACCOUNT_NAME || "EVENT ORGANIZER";
+const OPAY_ACCOUNT_NUMBER = process.env.OPAY_ACCOUNT_NUMBER || "7072179623";
+const OPAY_ACCOUNT_NAME = process.env.OPAY_ACCOUNT_NAME || "Larry Clinton Ebubechukwu";
 const OPAY_BANK_NAME = process.env.OPAY_BANK_NAME || "OPay";
 
 // Helper function to get amount based on level
