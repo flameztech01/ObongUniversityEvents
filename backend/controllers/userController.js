@@ -141,14 +141,20 @@ const loginUser = asyncHandler(async (req, res) => {
   });
 });
 
+
+
+
+
+
+
 // Upload payment receipt
 const uploadReceipt = asyncHandler(async (req, res) => {
   const { userId } = req.params;
-  const { receiptUrl } = req.body;
 
-  if (!receiptUrl) {
+  // Check if file was uploaded
+  if (!req.file) {
     res.status(400);
-    throw new Error("Receipt URL is required");
+    throw new Error("Please upload a receipt image");
   }
 
   const user = await User.findById(userId);
@@ -162,6 +168,9 @@ const uploadReceipt = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error(`Cannot upload receipt. Current status: ${user.status}`);
   }
+
+  // Get the Cloudinary URL from the uploaded file
+  const receiptUrl = req.file.path; // Cloudinary returns the URL in req.file.path
 
   // Update user with receipt and change status
   user.receiptUrl = receiptUrl;

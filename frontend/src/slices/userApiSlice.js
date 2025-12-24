@@ -23,11 +23,12 @@ export const userApiSlice = apiSlice.injectEndpoints({
     }),
 
     // Upload payment receipt
-    uploadReceipt: builder.mutation({
-      query: ({ userId, receiptUrl }) => ({
+   uploadReceipt: builder.mutation({
+      query: ({ userId, formData }) => ({
         url: `${USER_URL}/upload-receipt/${userId}`,
-        method: "POST",
-        body: { receiptUrl },
+        method: 'POST',
+        body: formData,
+        // Remove content-type header for FormData (let browser set it)
       }),
     }),
 

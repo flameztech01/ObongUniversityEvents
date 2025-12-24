@@ -14,11 +14,12 @@ const UploadReceiptScreen = () => {
   })
   
   const [receiptUrl, setReceiptUrl] = useState('')
-  const [uploadMethod, setUploadMethod] = useState('link')
+  const [uploadMethod, setUploadMethod] = useState('file') // Default to file upload
   const [errors, setErrors] = useState({})
   const [successMessage, setSuccessMessage] = useState('')
   const [previewImage, setPreviewImage] = useState(null)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [file, setFile] = useState(null)
   
   // Check if payment is already approved and redirect
   useEffect(() => {
@@ -50,8 +51,10 @@ const UploadReceiptScreen = () => {
   const validateForm = () => {
     const newErrors = {}
     
-    if (!receiptUrl.trim()) {
-      newErrors.receiptUrl = 'Receipt URL or image is required'
+    if (uploadMethod === 'link' && !receiptUrl.trim()) {
+      newErrors.receiptUrl = 'Receipt URL is required'
+    } else if (uploadMethod === 'file' && !file) {
+      newErrors.file = 'Please select a file to upload'
     }
     
     setErrors(newErrors)
@@ -66,15 +69,30 @@ const UploadReceiptScreen = () => {
     }).format(amount)
   }
   
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0]
-    if (file) {
+  const handleFileUpload = (e) => {
+    const uploadedFile = e.target.files[0]
+    if (uploadedFile) {
+      // Validate file size (10MB)
+      if (uploadedFile.size > 10 * 1024 * 1024) {
+        setErrors({ submit: 'File size must be less than 10MB' })
+        return
+      }
+      
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+      if (!validTypes.includes(uploadedFile.type)) {
+        setErrors({ submit: 'Please upload a valid image file (JPEG, PNG, GIF, WebP)' })
+        return
+      }
+      
       const reader = new FileReader()
       reader.onloadend = () => {
         setPreviewImage(reader.result)
-        setReceiptUrl(`data:${file.type};base64,${reader.result.split(',')[1]}`)
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(uploadedFile)
+      
+      setFile(uploadedFile)
+      setErrors({})
     }
   }
   
@@ -83,25 +101,43 @@ const UploadReceiptScreen = () => {
     
     if (!validateForm()) return
     
+    setErrors({})
+    
     try {
-      const result = await uploadReceipt({
-        userId,
-        receiptUrl
-      }).unwrap()
-      
-      setSuccessMessage('Receipt uploaded successfully! Awaiting admin verification.')
-      setErrors({})
-      setIsSubmitted(true)
-      
-      const checkStatus = async () => {
-        try {
-          await refetch()
-        } catch (error) {
-          console.error('Error checking status:', error)
+      // For file upload method (Cloudinary)
+      if (uploadMethod === 'file') {
+        const formData = new FormData()
+        formData.append('receipt', file)
+        
+        const result = await uploadReceipt({
+          userId,
+          formData
+        }).unwrap()
+        
+      } else {
+        // For URL method
+        const response = await fetch(`/api/users/upload-receipt/${userId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ receiptUrl }),
+        })
+        
+        const result = await response.json()
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Upload failed')
         }
       }
       
-      const statusInterval = setInterval(checkStatus, 5000)
+      setSuccessMessage('Receipt uploaded successfully! Awaiting admin verification.')
+      setIsSubmitted(true)
+      
+      // Start polling for status updates
+      const statusInterval = setInterval(() => {
+        refetch()
+      }, 5000)
       
       setTimeout(() => {
         clearInterval(statusInterval)
@@ -114,8 +150,8 @@ const UploadReceiptScreen = () => {
       
       if (error.data?.error) {
         setErrors({ submit: error.data.error })
-      } else if (error.data?.message) {
-        setErrors({ submit: error.data.message })
+      } else if (error.message) {
+        setErrors({ submit: error.message })
       } else {
         setErrors({ submit: 'Upload failed. Please try again.' })
       }
@@ -294,6 +330,8 @@ const UploadReceiptScreen = () => {
                     setIsSubmitted(false)
                     setReceiptUrl('')
                     setSuccessMessage('')
+                    setFile(null)
+                    setPreviewImage(null)
                   }}
                   className="flex-1 py-3 bg-gradient-to-br from-blue-600 to-blue-400 text-white rounded-lg font-medium transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 shadow-lg"
                 >
@@ -438,23 +476,12 @@ const UploadReceiptScreen = () => {
                   <input
                     type="radio"
                     name="uploadMethod"
-                    value="link"
-                    checked={uploadMethod === 'link'}
-                    onChange={(e) => setUploadMethod(e.target.value)}
-                    disabled={isUploading}
-                    className="sr-only peer"
-                  />
-                  <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg text-center transition-all duration-300 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-600 hover:border-blue-300">
-                    <span className="font-medium">Paste Image URL</span>
-                  </div>
-                </label>
-                <label className="flex-1 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="uploadMethod"
                     value="file"
                     checked={uploadMethod === 'file'}
-                    onChange={(e) => setUploadMethod(e.target.value)}
+                    onChange={(e) => {
+                      setUploadMethod(e.target.value)
+                      setErrors({})
+                    }}
                     disabled={isUploading}
                     className="sr-only peer"
                   />
@@ -462,11 +489,126 @@ const UploadReceiptScreen = () => {
                     <span className="font-medium">Upload File</span>
                   </div>
                 </label>
+                <label className="flex-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="uploadMethod"
+                    value="link"
+                    checked={uploadMethod === 'link'}
+                    onChange={(e) => {
+                      setUploadMethod(e.target.value)
+                      setErrors({})
+                    }}
+                    disabled={isUploading}
+                    className="sr-only peer"
+                  />
+                  <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg text-center transition-all duration-300 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-600 hover:border-blue-300">
+                    <span className="font-medium">Paste Image URL</span>
+                  </div>
+                </label>
               </div>
             </div>
             
-            {/* URL Upload */}
-            {uploadMethod === 'link' ? (
+            {/* File Upload */}
+            {uploadMethod === 'file' ? (
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label htmlFor="fileUpload" className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                    Upload Receipt Image
+                  </label>
+                  {errors.file && (
+                    <span className="text-sm text-red-500 font-medium">{errors.file}</span>
+                  )}
+                </div>
+                
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="fileUpload"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="sr-only"
+                    disabled={isUploading}
+                  />
+                  <label htmlFor="fileUpload" className="block cursor-pointer">
+                    <div className={`border-2 border-dashed rounded-lg p-12 text-center transition-all duration-300 ${
+                      file ? 'border-green-400 bg-green-50' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                    }`}>
+                      {file ? (
+                        <>
+                          <svg className="w-12 h-12 text-green-500 mx-auto mb-3" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9,16.17L4.83,12L3.41,13.41L9,19L21,7L19.59,5.59L9,16.17Z" />
+                          </svg>
+                          <p className="font-medium text-green-700 mb-1">File selected ✓</p>
+                          <p className="text-sm text-gray-600">{file.name}</p>
+                          <p className="text-xs text-gray-500 mt-2">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" />
+                          </svg>
+                          <p className="font-medium text-gray-700 mb-1">Click to upload receipt image</p>
+                          <p className="text-sm text-gray-500">PNG, JPG, GIF, WebP up to 10MB</p>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                  
+                  {previewImage && (
+                    <div className="mt-4 text-center">
+                      <img 
+                        src={previewImage} 
+                        alt="Receipt preview" 
+                        className="max-w-full max-h-[400px] mx-auto rounded-lg border border-gray-200 object-contain"
+                        style={{ maxHeight: '400px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewImage(null)
+                          setFile(null)
+                        }}
+                        className="mt-2 text-sm text-red-600 hover:text-red-700 font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                  
+                  {file && (
+                    <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200">
+                      <div className="flex items-start gap-3">
+                        <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15Z" />
+                        </svg>
+                        <div>
+                          <h4 className="font-semibold text-gray-800 mb-1">Cloudinary Optimization</h4>
+                          <p className="text-sm text-gray-700">
+                            Your image will be automatically optimized:
+                          </p>
+                          <ul className="text-sm text-gray-600 mt-2 space-y-1">
+                            <li className="flex items-center gap-2">
+                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              Compressed for fast loading
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              Supports long/tall images
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              Secure HTTPS delivery
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* URL Upload */
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label htmlFor="receiptUrl" className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
@@ -485,7 +627,10 @@ const UploadReceiptScreen = () => {
                     id="receiptUrl"
                     name="receiptUrl"
                     value={receiptUrl}
-                    onChange={(e) => setReceiptUrl(e.target.value)}
+                    onChange={(e) => {
+                      setReceiptUrl(e.target.value)
+                      setErrors({})
+                    }}
                     className={`w-full pl-12 pr-4 py-4 bg-gray-50 border-2 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 transition-all duration-300 font-medium ${errors.receiptUrl ? 'border-red-500 animate-[shake_0.5s_ease-in-out]' : 'border-gray-200'}`}
                     placeholder="https://example.com/receipt.jpg"
                     disabled={isUploading}
@@ -498,58 +643,6 @@ const UploadReceiptScreen = () => {
                   <p className="text-sm text-gray-700">
                     Upload to Google Drive, Dropbox, or any image hosting service and paste the link here
                   </p>
-                </div>
-              </div>
-            ) : (
-              /* File Upload */
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label htmlFor="fileUpload" className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
-                    Upload Receipt Image
-                  </label>
-                  {errors.receiptUrl && (
-                    <span className="text-sm text-red-500 font-medium">{errors.receiptUrl}</span>
-                  )}
-                </div>
-                
-                <div className="relative">
-                  <input
-                    type="file"
-                    id="fileUpload"
-                    accept="image/*,.pdf"
-                    onChange={handleImageUpload}
-                    className="sr-only"
-                    disabled={isUploading}
-                  />
-                  <label htmlFor="fileUpload" className="block cursor-pointer">
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
-                      <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" />
-                      </svg>
-                      <p className="font-medium text-gray-700 mb-1">Click to upload receipt image</p>
-                      <p className="text-sm text-gray-500">PNG, JPG, PDF up to 5MB</p>
-                    </div>
-                  </label>
-                  
-                  {previewImage && (
-                    <div className="mt-4 text-center">
-                      <img 
-                        src={previewImage} 
-                        alt="Receipt preview" 
-                        className="max-w-full max-h-48 mx-auto rounded-lg border border-gray-200"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPreviewImage(null)
-                          setReceiptUrl('')
-                        }}
-                        className="mt-2 text-sm text-red-600 hover:text-red-700 font-medium"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -573,7 +666,20 @@ const UploadReceiptScreen = () => {
                 </li>
                 <li>Image must be clear and readable</li>
                 <li>Whole receipt should be visible in the image</li>
-                <li>Maximum file size: 5MB</li>
+                <li>File types: JPG, PNG, GIF, WebP</li>
+                <li className="font-semibold text-blue-600">Maximum file size: 10MB</li>
+                <li className="text-green-600 flex items-center gap-2">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9,16.17L4.83,12L3.41,13.41L9,19L21,7L19.59,5.59L9,16.17Z" />
+                  </svg>
+                  Long images are automatically optimized
+                </li>
+                <li className="text-green-600 flex items-center gap-2">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9,16.17L4.83,12L3.41,13.41L9,19L21,7L19.59,5.59L9,16.17Z" />
+                  </svg>
+                  Portrait and landscape orientations supported
+                </li>
               </ul>
             </div>
             
@@ -711,4 +817,4 @@ const UploadReceiptScreen = () => {
   )
 }
 
-export default UploadReceiptScreen
+export default UploadReceiptScreen  
