@@ -10,11 +10,11 @@ const OPAY_BANK_NAME = process.env.OPAY_BANK_NAME || "OPay";
 // Helper function to get amount based on level
 const getAmountByLevel = (level) => {
   const amountMap = {
-    "100": 4000,  // 100 level
-    "200": 3000,  // 200 level
-    "300": 3000,  // 300 level
-    "400": 3000,  // 400 level
-    "500": 6000,  // 500 level
+    "100": 2000,  // 100 level
+    "200": 2000,  // 200 level
+    "300": 2000,  // 300 level
+    "400": 2000,  // 400 level
+    "500": 2000,  // 500 level
   };
   return amountMap[level] || 4000; // Default to 4000 if level not found
 };
